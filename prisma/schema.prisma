@@ -1,13 +1,179 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  TECHNICIAN
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+enum BookingStatus {
+  REQUESTED
+  ACCEPTED
+  DECLINED
+  PAID
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum PaymentProvider {
+  STRIPE
+  SSLCOMMERZ
+}
+
+model User {
+  id                String             @id @default(cuid())
+  name              String
+  email             String             @unique
+  password          String
+  phone             String?
+  image             String?
+  role              Role               @default(CUSTOMER)
+  status            UserStatus         @default(ACTIVE)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  technicianProfile TechnicianProfile?
+  bookings          Booking[]          @relation("CustomerBookings")
+  reviews           Review[]           @relation("CustomerReviews")
+  payments          Payment[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model TechnicianProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  bio           String?
+  experience    Int       @default(0)
+  hourlyRate    Decimal
+  location      String
+  averageRating Float     @default(0)
+  totalReviews  Int       @default(0)
+  isAvailable   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  services      Service[]
+  bookings      Booking[] @relation("TechnicianBookings")
+  reviews       Review[]  @relation("TechnicianReviews")
+
+  @@index([userId])
+  @@index([isAvailable])
+  @@index([location])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  services    Service[]
+
+  @@index([name])
+}
+
+model Service {
+  id           String            @id @default(cuid())
+  technicianId String
+  categoryId   String
+  title        String
+  description  String
+  price        Decimal
+  duration     Int
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  technician   TechnicianProfile @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  category     Category          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  bookings     Booking[]
+
+  @@index([technicianId])
+  @@index([categoryId])
+  @@index([isActive])
+}
+
+model Booking {
+  id           String            @id @default(cuid())
+  customerId   String
+  technicianId String
+  serviceId    String
+  servicePrice Decimal
+  bookingDate  DateTime
+  bookingTime DateTime
+  address      String
+  notes        String?
+  status       BookingStatus     @default(REQUESTED)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  customer     User              @relation("CustomerBookings", fields: [customerId], references: [id], onDelete: Cascade)
+  technician   TechnicianProfile @relation("TechnicianBookings", fields: [technicianId], references: [id], onDelete: Cascade)
+  service      Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  payment      Payment?
+  review       Review?
+
+  @@index([customerId])
+  @@index([technicianId])
+  @@index([serviceId])
+  @@index([status])
+  @@index([bookingDate])
+}
+
+model Payment {
+  id            String          @id @default(cuid())
+  bookingId     String          @unique
+  userId        String
+  transactionId String          @unique
+  amount        Decimal
+  provider      PaymentProvider @default(STRIPE)
+  status        PaymentStatus   @default(PENDING)
+  paidAt        DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  booking       Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([userId])
+  @@index([status])
+  @@index([transactionId])
+}
+
+model Review {
+  id           String            @id @default(cuid())
+  bookingId    String            @unique
+  customerId   String
+  technicianId String
+  rating       Int
+  comment      String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  booking      Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customer     User              @relation("CustomerReviews", fields: [customerId], references: [id], onDelete: Cascade)
+  technician   TechnicianProfile @relation("TechnicianReviews", fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([customerId])
+  @@index([technicianId])
+  @@index([rating])
 }
