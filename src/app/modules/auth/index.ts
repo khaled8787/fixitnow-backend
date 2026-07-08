@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { AuthRoutes } from "../../modules/auth/auth.route";
-import { UserRoutes } from "../../modules/user/user.route";
+import { AuthRoutes } from "../auth/auth.route";
+import { UserRoutes } from "../user/user.route";
+import { CategoryRoutes } from "../category/category.route";
 
 const router = Router();
 
@@ -9,12 +10,16 @@ const moduleRoutes: Array<{
   route: Router;
 }> = [
   {
-    path: "/auth",
+    path: "/api/auth",
     route: AuthRoutes,
   },
   {
-    path: "/users",
+    path: "/api/users",
     route: UserRoutes,
+  },
+  {
+    path: "/api/categories",
+    route: CategoryRoutes,
   },
 ];
 
