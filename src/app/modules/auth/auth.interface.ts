@@ -1,6 +1,6 @@
-import { Role, UserStatus } from "@prisma/client";
+import { Role, User } from "@prisma/client";
 
-export interface IRegisterUser {
+export interface IRegisterPayload {
   name: string;
   email: string;
   password: string;
@@ -9,7 +9,7 @@ export interface IRegisterUser {
   role: Role;
 }
 
-export interface ILoginUser {
+export interface ILoginPayload {
   email: string;
   password: string;
 }
@@ -20,19 +20,7 @@ export interface IJwtPayload {
   role: Role;
 }
 
-export interface IAuthUser {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  image: string | null;
-  role: Role;
-  status: UserStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
 export interface IAuthResponse {
   accessToken: string;
-  user: IAuthUser;
+  user: Omit<User, "password">;
 }
