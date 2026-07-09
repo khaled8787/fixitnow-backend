@@ -3,6 +3,7 @@ import { AuthRoutes } from "../auth/auth.route";
 import { UserRoutes } from "../user/user.route";
 import { CategoryRoutes } from "../category/category.route";
 import { ServiceRoutes } from "../service/service.route";
+import { TechnicianRoutes } from "../technician/technician.route";
 
 const router = Router();
 
@@ -26,6 +27,10 @@ const moduleRoutes: Array<{
     path: "/api/services",
     route: ServiceRoutes,
   },
+  {
+  path: "/api/technicians",
+  route: TechnicianRoutes,
+},
 ];
 
 moduleRoutes.forEach(({ path, route }) => {
