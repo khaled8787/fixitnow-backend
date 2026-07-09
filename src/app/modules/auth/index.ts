@@ -4,6 +4,7 @@ import { UserRoutes } from "../user/user.route";
 import { CategoryRoutes } from "../category/category.route";
 import { ServiceRoutes } from "../service/service.route";
 import { TechnicianRoutes } from "../technician/technician.route";
+import { BookingRoutes } from "../booking/booking.route";
 
 const router = Router();
 
@@ -30,6 +31,10 @@ const moduleRoutes: Array<{
   {
   path: "/api/technicians",
   route: TechnicianRoutes,
+},
+{
+  path: "/api/bookings",
+  route: BookingRoutes,
 },
 ];
 
