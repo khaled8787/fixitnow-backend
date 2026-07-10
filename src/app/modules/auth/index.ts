@@ -5,6 +5,7 @@ import { CategoryRoutes } from "../category/category.route";
 import { ServiceRoutes } from "../service/service.route";
 import { TechnicianRoutes } from "../technician/technician.route";
 import { BookingRoutes } from "../booking/booking.route";
+import { PaymentRoutes } from "../payment/payment.route";
 
 const router = Router();
 
@@ -35,6 +36,10 @@ const moduleRoutes: Array<{
 {
   path: "/api/bookings",
   route: BookingRoutes,
+},
+{
+  path: "/api/payments",
+  route: PaymentRoutes,
 },
 ];
 
