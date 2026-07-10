@@ -6,6 +6,7 @@ import { ServiceRoutes } from "../service/service.route";
 import { TechnicianRoutes } from "../technician/technician.route";
 import { BookingRoutes } from "../booking/booking.route";
 import { PaymentRoutes } from "../payment/payment.route";
+// import { ReviewRoutes } from "../review/review.route";
 
 const router = Router();
 
@@ -41,6 +42,10 @@ const moduleRoutes: Array<{
   path: "/api/payments",
   route: PaymentRoutes,
 },
+// {
+//   path: "/api/reviews",
+//   route: ReviewRoutes,
+// },
 ];
 
 moduleRoutes.forEach(({ path, route }) => {

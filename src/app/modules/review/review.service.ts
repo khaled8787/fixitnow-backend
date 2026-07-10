@@ -3,7 +3,7 @@ import { StatusCodes } from "http-status-codes";
 
 import AppError from "../../errors/AppError";
 import {prisma} from "../../utils/prisma";
-import { IReviewPayload, IReviewFilterRequest } from "./review.interface";
+import { IReviewPayload, IReviewFilterRequest, IReviewUpdatePayload } from "./review.interface";
 
 const createReview = async (
   customerId: string,
@@ -190,3 +190,179 @@ const getSingleReview = async (id: string) => {
 
   return review;
 };
+
+
+const updateReview = async (
+  id: string,
+  customerId: string,
+  payload: IReviewUpdatePayload
+) => {
+  const review = await prisma.review.findUnique({
+    where: {
+      id,
+    },
+    include: {
+      booking: true,
+    },
+  });
+
+  if (!review) {
+    throw new AppError(
+      StatusCodes.NOT_FOUND,
+      "Review not found"
+    );
+  }
+
+  if (review.customerId !== customerId) {
+    throw new AppError(
+      StatusCodes.FORBIDDEN,
+      "You are not authorized to update this review"
+    );
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedReview = await tx.review.update({
+      where: {
+        id,
+      },
+      data: {
+        ...(payload.rating !== undefined && {
+          rating: payload.rating,
+        }),
+        ...(payload.comment !== undefined && {
+          comment: payload.comment?.trim(),
+        }),
+      },
+    });
+
+    const aggregated = await tx.review.aggregate({
+      where: {
+        technicianId: review.technicianId,
+      },
+      _avg: {
+        rating: true,
+      },
+      _count: {
+        rating: true,
+      },
+    });
+
+    await tx.technicianProfile.update({
+      where: {
+        id: review.technicianId,
+      },
+      data: {
+        averageRating: aggregated._avg.rating ?? 0,
+        totalReviews: aggregated._count.rating,
+      },
+    });
+
+    return tx.review.findUnique({
+      where: {
+        id: updatedReview.id,
+      },
+      include: {
+        customer: true,
+        technician: {
+          include: {
+            user: true,
+          },
+        },
+        booking: {
+          include: {
+            service: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  });
+
+  return result;
+};
+
+
+const deleteReview = async (
+  id: string,
+  customerId: string
+) => {
+  const review = await prisma.review.findUnique({
+    where: {
+      id,
+    },
+    include: {
+      booking: true,
+    },
+  });
+
+  if (!review) {
+    throw new AppError(
+      StatusCodes.NOT_FOUND,
+      "Review not found"
+    );
+  }
+
+  if (review.customerId !== customerId) {
+    throw new AppError(
+      StatusCodes.FORBIDDEN,
+      "You are not authorized to delete this review"
+    );
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const deletedReview = await tx.review.delete({
+      where: {
+        id,
+      },
+      include: {
+        customer: true,
+        technician: {
+          include: {
+            user: true,
+          },
+        },
+        booking: {
+          include: {
+            service: {
+              include: {
+                category: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const aggregated = await tx.review.aggregate({
+      where: {
+        technicianId: review.technicianId,
+      },
+      _avg: {
+        rating: true,
+      },
+      _count: {
+        rating: true,
+      },
+    });
+
+    await tx.technicianProfile.update({
+      where: {
+        id: review.technicianId,
+      },
+      data: {
+        averageRating: aggregated._avg.rating ?? 0,
+        totalReviews: aggregated._count.rating,
+      },
+    });
+
+    return deletedReview;
+  });
+
+  return result;
+};
+
+
+export const ReviewService = { createReview, getAllReviews, getSingleReview, updateReview, deleteReview, };
