@@ -6,6 +6,7 @@ export interface IServicePayload {
   description: string;
   price: Prisma.Decimal | number | string;
   duration: number;
+  image?: string;
 }
 
 export interface IServiceUpdatePayload {
@@ -14,6 +15,7 @@ export interface IServiceUpdatePayload {
   description?: string;
   price?: Prisma.Decimal | number | string;
   duration?: number;
+  image?: string;
   isActive?: boolean;
 }
 

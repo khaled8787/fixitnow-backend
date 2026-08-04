@@ -101,6 +101,7 @@ model Service {
   description  String
   price        Decimal
   duration     Int
+  image        String?
   isActive     Boolean           @default(true)
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt

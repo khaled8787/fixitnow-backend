@@ -28,6 +28,12 @@ const createServiceValidationSchema = z.object({
     .int("Duration must be an integer")
     .min(15, "Duration must be at least 15 minutes")
     .max(1440, "Duration cannot exceed 1440 minutes"),
+
+  image: z
+    .string()
+    .trim()
+    .url("Image must be a valid URL")
+    .optional(),
 });
 
 const updateServiceValidationSchema = z
@@ -62,7 +68,16 @@ const updateServiceValidationSchema = z
     duration: z
       .int("Duration must be an integer")
       .min(15, "Duration must be at least 15 minutes")
-      .max(1440, "Duration must be an integer between 15 and 1440")
+      .max(
+        1440,
+        "Duration must be an integer between 15 and 1440",
+      )
+      .optional(),
+
+    image: z
+      .string()
+      .trim()
+      .url("Image must be a valid URL")
       .optional(),
 
     isActive: z.boolean().optional(),

@@ -33,7 +33,10 @@ const createService = async (
   });
 
   if (!category) {
-    throw new AppError(StatusCodes.NOT_FOUND, "Category not found");
+    throw new AppError(
+      StatusCodes.NOT_FOUND,
+      "Category not found"
+    );
   }
 
   const service = await prisma.service.create({
@@ -44,7 +47,12 @@ const createService = async (
       description: payload.description.trim(),
       price: new Prisma.Decimal(payload.price),
       duration: payload.duration,
+
+      ...(payload.image && {
+        image: payload.image.trim(),
+      }),
     },
+
     include: {
       category: true,
       technician: true,
@@ -54,7 +62,9 @@ const createService = async (
   return service;
 };
 
-const getAllServices = async (filters: IServiceFilterRequest) => {
+const getAllServices = async (
+  filters: IServiceFilterRequest
+) => {
   const where: Prisma.ServiceWhereInput = {};
 
   if (filters.searchTerm) {
@@ -89,20 +99,26 @@ const getAllServices = async (filters: IServiceFilterRequest) => {
     where.price = {};
 
     if (filters.minPrice !== undefined) {
-      where.price.gte = new Prisma.Decimal(filters.minPrice);
+      where.price.gte = new Prisma.Decimal(
+        filters.minPrice
+      );
     }
 
     if (filters.maxPrice !== undefined) {
-      where.price.lte = new Prisma.Decimal(filters.maxPrice);
+      where.price.lte = new Prisma.Decimal(
+        filters.maxPrice
+      );
     }
   }
 
   return prisma.service.findMany({
     where,
+
     include: {
       category: true,
       technician: true,
     },
+
     orderBy: {
       createdAt: "desc",
     },
@@ -114,6 +130,7 @@ const getSingleService = async (id: string) => {
     where: {
       id,
     },
+
     include: {
       category: true,
       technician: true,
@@ -121,7 +138,10 @@ const getSingleService = async (id: string) => {
   });
 
   if (!service) {
-    throw new AppError(StatusCodes.NOT_FOUND, "Service not found");
+    throw new AppError(
+      StatusCodes.NOT_FOUND,
+      "Service not found"
+    );
   }
 
   return service;
@@ -132,11 +152,12 @@ const updateService = async (
   technicianId: string,
   payload: IServiceUpdatePayload
 ) => {
-  const technician = await prisma.technicianProfile.findUnique({
-    where: {
-      userId: technicianId,
-    },
-  });
+  const technician =
+    await prisma.technicianProfile.findUnique({
+      where: {
+        userId: technicianId,
+      },
+    });
 
   if (!technician) {
     throw new AppError(
@@ -145,17 +166,23 @@ const updateService = async (
     );
   }
 
-  const existingService = await prisma.service.findUnique({
-    where: {
-      id,
-    },
-  });
+  const existingService =
+    await prisma.service.findUnique({
+      where: {
+        id,
+      },
+    });
 
   if (!existingService) {
-    throw new AppError(StatusCodes.NOT_FOUND, "Service not found");
+    throw new AppError(
+      StatusCodes.NOT_FOUND,
+      "Service not found"
+    );
   }
 
-  if (existingService.technicianId !== technician.id) {
+  if (
+    existingService.technicianId !== technician.id
+  ) {
     throw new AppError(
       StatusCodes.FORBIDDEN,
       "You are not authorized to update this service"
@@ -163,42 +190,64 @@ const updateService = async (
   }
 
   if (payload.categoryId) {
-    const category = await prisma.category.findUnique({
-      where: {
-        id: payload.categoryId,
-      },
-    });
+    const category =
+      await prisma.category.findUnique({
+        where: {
+          id: payload.categoryId,
+        },
+      });
 
     if (!category) {
-      throw new AppError(StatusCodes.NOT_FOUND, "Category not found");
+      throw new AppError(
+        StatusCodes.NOT_FOUND,
+        "Category not found"
+      );
     }
   }
 
-  const updatedService = await prisma.service.update({
-    where: {
-      id,
-    },
-    data: {
-      ...(payload.categoryId && { categoryId: payload.categoryId }),
-      ...(payload.title && { title: payload.title.trim() }),
-      ...(payload.description && {
-        description: payload.description.trim(),
-      }),
-      ...(payload.price !== undefined && {
-        price: new Prisma.Decimal(payload.price),
-      }),
-      ...(payload.duration !== undefined && {
-        duration: payload.duration,
-      }),
-      ...(payload.isActive !== undefined && {
-        isActive: payload.isActive,
-      }),
-    },
-    include: {
-      category: true,
-      technician: true,
-    },
-  });
+  const updatedService =
+    await prisma.service.update({
+      where: {
+        id,
+      },
+
+      data: {
+        ...(payload.categoryId && {
+          categoryId: payload.categoryId,
+        }),
+
+        ...(payload.title && {
+          title: payload.title.trim(),
+        }),
+
+        ...(payload.description && {
+          description: payload.description.trim(),
+        }),
+
+        ...(payload.price !== undefined && {
+          price: new Prisma.Decimal(payload.price),
+        }),
+
+        ...(payload.duration !== undefined && {
+          duration: payload.duration,
+        }),
+
+        ...(payload.image !== undefined && {
+          image: payload.image
+            ? payload.image.trim()
+            : null,
+        }),
+
+        ...(payload.isActive !== undefined && {
+          isActive: payload.isActive,
+        }),
+      },
+
+      include: {
+        category: true,
+        technician: true,
+      },
+    });
 
   return updatedService;
 };
@@ -207,11 +256,12 @@ const deleteService = async (
   id: string,
   technicianId: string
 ) => {
-  const technician = await prisma.technicianProfile.findUnique({
-    where: {
-      userId: technicianId,
-    },
-  });
+  const technician =
+    await prisma.technicianProfile.findUnique({
+      where: {
+        userId: technicianId,
+      },
+    });
 
   if (!technician) {
     throw new AppError(
@@ -220,17 +270,23 @@ const deleteService = async (
     );
   }
 
-  const existingService = await prisma.service.findUnique({
-    where: {
-      id,
-    },
-  });
+  const existingService =
+    await prisma.service.findUnique({
+      where: {
+        id,
+      },
+    });
 
   if (!existingService) {
-    throw new AppError(StatusCodes.NOT_FOUND, "Service not found");
+    throw new AppError(
+      StatusCodes.NOT_FOUND,
+      "Service not found"
+    );
   }
 
-  if (existingService.technicianId !== technician.id) {
+  if (
+    existingService.technicianId !== technician.id
+  ) {
     throw new AppError(
       StatusCodes.FORBIDDEN,
       "You are not authorized to delete this service"
@@ -241,6 +297,7 @@ const deleteService = async (
     where: {
       id,
     },
+
     include: {
       category: true,
       technician: true,
