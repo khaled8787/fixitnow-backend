@@ -101,10 +101,12 @@ const handleStripeWebhook = catchAsync(
     const signature = req.headers["stripe-signature"];
 
     if (!signature || Array.isArray(signature)) {
-      return res.status(StatusCodes.BAD_REQUEST).json({
+      res.status(StatusCodes.BAD_REQUEST).json({
         success: false,
         message: "Stripe signature is required",
       });
+
+      return;
     }
 
     const rawBody = Buffer.isBuffer(req.body)
@@ -117,7 +119,7 @@ const handleStripeWebhook = catchAsync(
         signature
       );
 
-    return res.status(StatusCodes.OK).json({
+    res.status(StatusCodes.OK).json({
       received: true,
       success: true,
       data: result,
