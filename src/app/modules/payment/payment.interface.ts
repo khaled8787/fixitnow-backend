@@ -20,4 +20,5 @@ export interface IPaymentStatusPayload {
   status: PaymentStatus;
 }
 
-export type IPaymentResponse = Payment;
+export interface IPaymentResponse
+  extends Payment {}

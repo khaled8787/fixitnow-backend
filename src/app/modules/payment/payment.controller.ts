@@ -7,60 +7,74 @@ import sendResponse from "../../utils/sendResponse";
 import { IPaymentFilterRequest } from "./payment.interface";
 import { PaymentService } from "./payment.service";
 
-const createPayment = catchAsync(async (req: Request, res: Response) => {
-  const userId = req.user!.userId;
+const createPayment = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
 
-  const result = await PaymentService.createPayment(userId, req.body);
+    const result = await PaymentService.createPayment(
+      userId,
+      req.body
+    );
 
-  sendResponse(res, StatusCodes.CREATED, {
-    success: true,
-    message: "Payment initiated successfully",
-    data: result,
-  });
-});
+    sendResponse(res, StatusCodes.CREATED, {
+      success: true,
+      message: "Payment initiated successfully",
+      data: result,
+    });
+  }
+);
 
-const getAllPayments = catchAsync(async (req: Request, res: Response) => {
-  const filters: IPaymentFilterRequest = {
-    status:
-      typeof req.query.status === "string"
-        ? (req.query.status as PaymentStatus)
-        : undefined,
-    provider:
-      typeof req.query.provider === "string"
-        ? (req.query.provider as PaymentProvider)
-        : undefined,
-    bookingId:
-      typeof req.query.bookingId === "string"
-        ? req.query.bookingId
-        : undefined,
-    transactionId:
-      typeof req.query.transactionId === "string"
-        ? req.query.transactionId
-        : undefined,
-  };
+const getAllPayments = catchAsync(
+  async (req: Request, res: Response) => {
+    const filters: IPaymentFilterRequest = {
+      status:
+        typeof req.query.status === "string"
+          ? (req.query.status as PaymentStatus)
+          : undefined,
 
-  const result = await PaymentService.getAllPayments(filters);
+      provider:
+        typeof req.query.provider === "string"
+          ? (req.query.provider as PaymentProvider)
+          : undefined,
 
-  sendResponse(res, StatusCodes.OK, {
-    success: true,
-    message: "Payments retrieved successfully",
-    data: result,
-  });
-});
+      bookingId:
+        typeof req.query.bookingId === "string"
+          ? req.query.bookingId
+          : undefined,
 
-const getSinglePayment = catchAsync(async (req: Request, res: Response) => {
-  const id = Array.isArray(req.params.id)
-    ? req.params.id[0]
-    : req.params.id;
+      transactionId:
+        typeof req.query.transactionId === "string"
+          ? req.query.transactionId
+          : undefined,
+    };
 
-  const result = await PaymentService.getSinglePayment(id);
+    const result =
+      await PaymentService.getAllPayments(filters);
 
-  sendResponse(res, StatusCodes.OK, {
-    success: true,
-    message: "Payment retrieved successfully",
-    data: result,
-  });
-});
+    sendResponse(res, StatusCodes.OK, {
+      success: true,
+      message: "Payments retrieved successfully",
+      data: result,
+    });
+  }
+);
+
+const getSinglePayment = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id)
+      ? req.params.id[0]
+      : req.params.id;
+
+    const result =
+      await PaymentService.getSinglePayment(id);
+
+    sendResponse(res, StatusCodes.OK, {
+      success: true,
+      message: "Payment retrieved successfully",
+      data: result,
+    });
+  }
+);
 
 const updatePaymentStatus = catchAsync(
   async (req: Request, res: Response) => {
@@ -68,11 +82,44 @@ const updatePaymentStatus = catchAsync(
       ? req.params.id[0]
       : req.params.id;
 
-    const result = await PaymentService.updatePaymentStatus(id, req.body);
+    const result =
+      await PaymentService.updatePaymentStatus(
+        id,
+        req.body
+      );
 
     sendResponse(res, StatusCodes.OK, {
       success: true,
       message: "Payment status updated successfully",
+      data: result,
+    });
+  }
+);
+
+const handleStripeWebhook = catchAsync(
+  async (req: Request, res: Response) => {
+    const signature = req.headers["stripe-signature"];
+
+    if (!signature || Array.isArray(signature)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        message: "Stripe signature is required",
+      });
+    }
+
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(req.body);
+
+    const result =
+      await PaymentService.handleStripeWebhook(
+        rawBody,
+        signature
+      );
+
+    return res.status(StatusCodes.OK).json({
+      received: true,
+      success: true,
       data: result,
     });
   }
@@ -83,4 +130,5 @@ export const PaymentController = {
   getAllPayments,
   getSinglePayment,
   updatePaymentStatus,
+  handleStripeWebhook,
 };
