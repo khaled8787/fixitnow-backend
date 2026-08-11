@@ -1,4 +1,8 @@
-import { Booking, BookingStatus, Prisma } from "@prisma/client";
+import {
+  Booking,
+  BookingStatus,
+  Prisma,
+} from "@prisma/client";
 
 export interface IBookingPayload {
   technicianId: string;
@@ -23,7 +27,7 @@ export interface IBookingStatusPayload {
 export interface IBookingFilterRequest {
   searchTerm?: string;
   status?: BookingStatus;
-  bookingDate?: Date | string;
+  bookingDate?: string;
   technicianId?: string;
 }
 
