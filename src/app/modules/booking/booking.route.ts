@@ -1,5 +1,5 @@
-import { Role, Router } from "express";
-
+import { Role } from "@prisma/client";
+import { Router } from "express";
 import auth from "../../middlewares/auth";
 import validateRequest from "../../middlewares/ValidateRequest";
 
