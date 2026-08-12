@@ -1,5 +1,6 @@
 import { Role } from "@prisma/client";
 import { Router } from "express";
+
 import auth from "../../middlewares/auth";
 import validateRequest from "../../middlewares/ValidateRequest";
 
@@ -8,6 +9,15 @@ import { BookingValidation } from "./booking.validation";
 
 const router = Router();
 
+/**
+ * ============================================================
+ * CUSTOMER
+ * ============================================================
+ */
+
+/**
+ * Create booking
+ */
 router.post(
   "/",
   auth(Role.CUSTOMER),
@@ -17,37 +27,17 @@ router.post(
   BookingController.createBooking
 );
 
-
-router.get(
-  "/",
-  auth(
-    Role.ADMIN,
-    Role.TECHNICIAN,
-    Role.CUSTOMER
-  ),
-  BookingController.getAllBookings
-);
-
 /**
- * Get Single Booking
- *
- * CUSTOMER   -> Own booking
- * TECHNICIAN -> Own assigned booking
- * ADMIN      -> Any booking
+ * Get customer's own bookings
  */
 router.get(
-  "/:id",
-  auth(
-    Role.CUSTOMER,
-    Role.TECHNICIAN,
-    Role.ADMIN
-  ),
-  BookingController.getSingleBooking
+  "/my-bookings",
+  auth(Role.CUSTOMER),
+  BookingController.getMyBookings
 );
 
 /**
- * Update Booking
- * CUSTOMER only
+ * Update own booking
  */
 router.patch(
   "/:id",
@@ -59,8 +49,31 @@ router.patch(
 );
 
 /**
- * Update Booking Status
- * TECHNICIAN only
+ * Cancel own booking
+ */
+router.patch(
+  "/:id/cancel",
+  auth(Role.CUSTOMER),
+  BookingController.cancelBooking
+);
+
+/**
+ * ============================================================
+ * TECHNICIAN
+ * ============================================================
+ */
+
+/**
+ * Get technician's own bookings
+ */
+router.get(
+  "/technician",
+  auth(Role.TECHNICIAN),
+  BookingController.getTechnicianBookings
+);
+
+/**
+ * Technician accepts / declines / updates booking status
  */
 router.patch(
   "/:id/status",
@@ -72,13 +85,46 @@ router.patch(
 );
 
 /**
- * Cancel Booking
- * CUSTOMER only
+ * ============================================================
+ * ADMIN
+ * ============================================================
  */
-router.patch(
-  "/:id/cancel",
-  auth(Role.CUSTOMER),
-  BookingController.cancelBooking
+
+/**
+ * Admin can see ALL bookings
+ */
+router.get(
+  "/admin",
+  auth(Role.ADMIN),
+  BookingController.getAdminBookings
+);
+
+/**
+ * Admin can delete a booking
+ */
+router.delete(
+  "/admin/:id",
+  auth(Role.ADMIN),
+  BookingController.deleteBooking
+);
+
+/**
+ * ============================================================
+ * SINGLE BOOKING
+ * ============================================================
+ *
+ * Customer -> own booking
+ * Technician -> assigned booking
+ * Admin -> any booking
+ */
+router.get(
+  "/:id",
+  auth(
+    Role.CUSTOMER,
+    Role.TECHNICIAN,
+    Role.ADMIN
+  ),
+  BookingController.getSingleBooking
 );
 
 export const BookingRoutes = router;

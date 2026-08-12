@@ -3,6 +3,7 @@ import {
   Prisma,
   Role,
 } from "@prisma/client";
+
 import { StatusCodes } from "http-status-codes";
 
 import AppError from "../../errors/AppError";
@@ -20,6 +21,7 @@ import {
  * CREATE BOOKING
  * ============================================================
  */
+
 const createBooking = async (
   customerId: string,
   payload: IBookingPayload
@@ -80,10 +82,7 @@ const createBooking = async (
     );
   }
 
-  if (
-    service.technicianId !==
-    technician.id
-  ) {
+  if (service.technicianId !== technician.id) {
     throw new AppError(
       StatusCodes.BAD_REQUEST,
       "Selected service does not belong to the selected technician"
@@ -96,18 +95,19 @@ const createBooking = async (
         customerId,
         technicianId: technician.id,
         serviceId: service.id,
-        servicePrice:
-          new Prisma.Decimal(service.price),
-        bookingDate:
-          new Date(payload.bookingDate),
-        bookingTime:
-          new Date(payload.bookingTime),
-        address:
-          payload.address.trim(),
+        servicePrice: new Prisma.Decimal(
+          service.price
+        ),
+        bookingDate: new Date(
+          payload.bookingDate
+        ),
+        bookingTime: new Date(
+          payload.bookingTime
+        ),
+        address: payload.address.trim(),
         notes:
           payload.notes?.trim() || null,
-        status:
-          BookingStatus.REQUESTED,
+        status: BookingStatus.REQUESTED,
       },
 
       include: {
@@ -132,9 +132,10 @@ const createBooking = async (
 
 /**
  * ============================================================
- * GET ALL BOOKINGS - ADMIN
+ * ADMIN - ALL BOOKINGS
  * ============================================================
  */
+
 const getAllBookings = async (
   filters: IBookingFilterRequest
 ) => {
@@ -145,12 +146,9 @@ const getAllBookings = async (
     technicianId,
   } = filters;
 
-  const andConditions:
-    Prisma.BookingWhereInput[] = [];
+  const andConditions: Prisma.BookingWhereInput[] =
+    [];
 
-  /**
-   * Search
-   */
   if (searchTerm) {
     andConditions.push({
       OR: [
@@ -191,29 +189,19 @@ const getAllBookings = async (
     });
   }
 
-  /**
-   * Status
-   */
   if (status) {
     andConditions.push({
       status,
     });
   }
 
-  /**
-   * Booking Date
-   */
   if (bookingDate) {
-    const date =
-      new Date(bookingDate);
+    const date = new Date(
+      bookingDate
+    );
 
-    if (
-      !Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      const nextDate =
-        new Date(date);
+    if (!Number.isNaN(date.getTime())) {
+      const nextDate = new Date(date);
 
       nextDate.setDate(
         nextDate.getDate() + 1
@@ -228,17 +216,13 @@ const getAllBookings = async (
     }
   }
 
-  /**
-   * Technician
-   */
   if (technicianId) {
     andConditions.push({
       technicianId,
     });
   }
 
-  const where:
-    Prisma.BookingWhereInput =
+  const where: Prisma.BookingWhereInput =
     andConditions.length > 0
       ? {
           AND: andConditions,
@@ -264,7 +248,6 @@ const getAllBookings = async (
       },
 
       payment: true,
-
       review: true,
     },
 
@@ -276,9 +259,112 @@ const getAllBookings = async (
 
 /**
  * ============================================================
- * GET TECHNICIAN BOOKINGS
+ * CUSTOMER - OWN BOOKINGS ONLY
  * ============================================================
  */
+
+const getCustomerBookings = async (
+  customerId: string,
+  filters: IBookingFilterRequest
+) => {
+  const {
+    searchTerm,
+    status,
+    bookingDate,
+  } = filters;
+
+  const andConditions: Prisma.BookingWhereInput[] =
+    [
+      {
+        customerId,
+      },
+    ];
+
+  if (searchTerm) {
+    andConditions.push({
+      OR: [
+        {
+          service: {
+            title: {
+              contains: searchTerm,
+              mode: "insensitive",
+            },
+          },
+        },
+
+        {
+          address: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+      ],
+    });
+  }
+
+  if (status) {
+    andConditions.push({
+      status,
+    });
+  }
+
+  if (bookingDate) {
+    const date = new Date(
+      bookingDate
+    );
+
+    if (!Number.isNaN(date.getTime())) {
+      const nextDate = new Date(date);
+
+      nextDate.setDate(
+        nextDate.getDate() + 1
+      );
+
+      andConditions.push({
+        bookingDate: {
+          gte: date,
+          lt: nextDate,
+        },
+      });
+    }
+  }
+
+  return prisma.booking.findMany({
+    where: {
+      AND: andConditions,
+    },
+
+    include: {
+      customer: true,
+
+      technician: {
+        include: {
+          user: true,
+        },
+      },
+
+      service: {
+        include: {
+          category: true,
+        },
+      },
+
+      payment: true,
+      review: true,
+    },
+
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+};
+
+/**
+ * ============================================================
+ * TECHNICIAN - OWN BOOKINGS ONLY
+ * ============================================================
+ */
+
 const getTechnicianBookings = async (
   technicianUserId: string,
   filters: IBookingFilterRequest
@@ -303,17 +389,13 @@ const getTechnicianBookings = async (
     bookingDate,
   } = filters;
 
-  const andConditions:
-    Prisma.BookingWhereInput[] = [
+  const andConditions: Prisma.BookingWhereInput[] =
+    [
       {
-        technicianId:
-          technician.id,
+        technicianId: technician.id,
       },
     ];
 
-  /**
-   * Search
-   */
   if (searchTerm) {
     andConditions.push({
       OR: [
@@ -354,29 +436,19 @@ const getTechnicianBookings = async (
     });
   }
 
-  /**
-   * Status
-   */
   if (status) {
     andConditions.push({
       status,
     });
   }
 
-  /**
-   * Booking Date
-   */
   if (bookingDate) {
-    const date =
-      new Date(bookingDate);
+    const date = new Date(
+      bookingDate
+    );
 
-    if (
-      !Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      const nextDate =
-        new Date(date);
+    if (!Number.isNaN(date.getTime())) {
+      const nextDate = new Date(date);
 
       nextDate.setDate(
         nextDate.getDate() + 1
@@ -412,7 +484,6 @@ const getTechnicianBookings = async (
       },
 
       payment: true,
-
       review: true,
     },
 
@@ -424,135 +495,16 @@ const getTechnicianBookings = async (
 
 /**
  * ============================================================
- * GET CUSTOMER BOOKINGS
+ * SINGLE BOOKING
  * ============================================================
+ *
+ * SECURITY:
+ *
+ * ADMIN -> can see any booking
+ * CUSTOMER -> only own booking
+ * TECHNICIAN -> only assigned booking
  */
-const getCustomerBookings = async (
-  customerId: string,
-  filters: IBookingFilterRequest
-) => {
-  const {
-    searchTerm,
-    status,
-    bookingDate,
-  } = filters;
 
-  const andConditions:
-    Prisma.BookingWhereInput[] = [
-      {
-        customerId,
-      },
-    ];
-
-  /**
-   * Search
-   */
-  if (searchTerm) {
-    andConditions.push({
-      OR: [
-        {
-          service: {
-            title: {
-              contains: searchTerm,
-              mode: "insensitive",
-            },
-          },
-        },
-
-        {
-          address: {
-            contains: searchTerm,
-            mode: "insensitive",
-          },
-        },
-
-        {
-          technician: {
-            user: {
-              name: {
-                contains: searchTerm,
-                mode: "insensitive",
-              },
-            },
-          },
-        },
-      ],
-    });
-  }
-
-  /**
-   * Status
-   */
-  if (status) {
-    andConditions.push({
-      status,
-    });
-  }
-
-  /**
-   * Booking Date
-   */
-  if (bookingDate) {
-    const date =
-      new Date(bookingDate);
-
-    if (
-      !Number.isNaN(
-        date.getTime()
-      )
-    ) {
-      const nextDate =
-        new Date(date);
-
-      nextDate.setDate(
-        nextDate.getDate() + 1
-      );
-
-      andConditions.push({
-        bookingDate: {
-          gte: date,
-          lt: nextDate,
-        },
-      });
-    }
-  }
-
-  return prisma.booking.findMany({
-    where: {
-      AND: andConditions,
-    },
-
-    include: {
-      customer: true,
-
-      technician: {
-        include: {
-          user: true,
-        },
-      },
-
-      service: {
-        include: {
-          category: true,
-        },
-      },
-
-      payment: true,
-
-      review: true,
-    },
-
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-};
-
-/**
- * ============================================================
- * GET SINGLE BOOKING
- * ============================================================
- */
 const getSingleBooking = async (
   id: string,
   userId: string,
@@ -580,7 +532,6 @@ const getSingleBooking = async (
         },
 
         payment: true,
-
         review: true,
       },
     });
@@ -593,57 +544,56 @@ const getSingleBooking = async (
   }
 
   /**
-   * ADMIN can view everything
+   * ADMIN can access everything
    */
   if (role === Role.ADMIN) {
     return booking;
   }
 
   /**
-   * CUSTOMER can only view own booking
+   * CUSTOMER can access own booking only
    */
-  if (role === Role.CUSTOMER) {
-    if (
-      booking.customerId !==
-      userId
-    ) {
-      throw new AppError(
-        StatusCodes.FORBIDDEN,
-        "You are not authorized to view this booking"
-      );
-    }
-
-    return booking;
+  if (
+    role === Role.CUSTOMER &&
+    booking.customerId !== userId
+  ) {
+    throw new AppError(
+      StatusCodes.FORBIDDEN,
+      "You are not authorized to access this booking"
+    );
   }
 
   /**
-   * TECHNICIAN can only view assigned booking
+   * TECHNICIAN can access assigned booking only
    */
   if (role === Role.TECHNICIAN) {
+    const technician =
+      await prisma.technicianProfile.findUnique({
+        where: {
+          userId,
+        },
+      });
+
     if (
-      booking.technician.userId !==
-      userId
+      !technician ||
+      booking.technicianId !== technician.id
     ) {
       throw new AppError(
         StatusCodes.FORBIDDEN,
-        "You are not authorized to view this booking"
+        "You are not authorized to access this booking"
       );
     }
-
-    return booking;
   }
 
-  throw new AppError(
-    StatusCodes.FORBIDDEN,
-    "You are not authorized to view this booking"
-  );
+  return booking;
 };
 
 /**
  * ============================================================
- * UPDATE BOOKING
+ * CUSTOMER - UPDATE
  * ============================================================
  */
+
 const updateBooking = async (
   id: string,
   customerId: string,
@@ -663,10 +613,7 @@ const updateBooking = async (
     );
   }
 
-  if (
-    booking.customerId !==
-    customerId
-  ) {
+  if (booking.customerId !== customerId) {
     throw new AppError(
       StatusCodes.FORBIDDEN,
       "You are not authorized to update this booking"
@@ -683,38 +630,27 @@ const updateBooking = async (
     );
   }
 
-  const updateData:
-    Prisma.BookingUpdateInput = {};
+  const updateData: Prisma.BookingUpdateInput =
+    {};
 
   if (payload.bookingDate) {
     updateData.bookingDate =
-      new Date(
-        payload.bookingDate
-      );
+      new Date(payload.bookingDate);
   }
 
   if (payload.bookingTime) {
     updateData.bookingTime =
-      new Date(
-        payload.bookingTime
-      );
+      new Date(payload.bookingTime);
   }
 
-  if (
-    payload.address !==
-    undefined
-  ) {
+  if (payload.address !== undefined) {
     updateData.address =
       payload.address.trim();
   }
 
-  if (
-    payload.notes !==
-    undefined
-  ) {
+  if (payload.notes !== undefined) {
     updateData.notes =
-      payload.notes?.trim() ||
-      null;
+      payload.notes?.trim() || null;
   }
 
   return prisma.booking.update({
@@ -738,19 +674,16 @@ const updateBooking = async (
           category: true,
         },
       },
-
-      payment: true,
-
-      review: true,
     },
   });
 };
 
 /**
  * ============================================================
- * UPDATE BOOKING STATUS
+ * TECHNICIAN - STATUS UPDATE
  * ============================================================
  */
+
 const updateBookingStatus = async (
   id: string,
   technicianUserId: string,
@@ -775,14 +708,6 @@ const updateBookingStatus = async (
       where: {
         id,
       },
-
-      include: {
-        customer: true,
-
-        technician: true,
-
-        service: true,
-      },
     });
 
   if (!booking) {
@@ -792,9 +717,6 @@ const updateBookingStatus = async (
     );
   }
 
-  /**
-   * Technician ownership check
-   */
   if (
     booking.technicianId !==
     technician.id
@@ -805,42 +727,36 @@ const updateBookingStatus = async (
     );
   }
 
-  /**
-   * Valid status transitions
-   */
-  const validTransitions:
-    Record<
-      BookingStatus,
-      BookingStatus[]
-    > = {
-      [BookingStatus.REQUESTED]: [
-        BookingStatus.ACCEPTED,
-        BookingStatus.DECLINED,
-      ],
+  const validTransitions: Record<
+    BookingStatus,
+    BookingStatus[]
+  > = {
+    [BookingStatus.REQUESTED]: [
+      BookingStatus.ACCEPTED,
+      BookingStatus.DECLINED,
+    ],
 
-      [BookingStatus.ACCEPTED]: [
-        BookingStatus.PAID,
-      ],
+    [BookingStatus.ACCEPTED]: [
+      BookingStatus.PAID,
+    ],
 
-      [BookingStatus.PAID]: [
-        BookingStatus.IN_PROGRESS,
-      ],
+    [BookingStatus.PAID]: [
+      BookingStatus.IN_PROGRESS,
+    ],
 
-      [BookingStatus.IN_PROGRESS]: [
-        BookingStatus.COMPLETED,
-      ],
+    [BookingStatus.IN_PROGRESS]: [
+      BookingStatus.COMPLETED,
+    ],
 
-      [BookingStatus.DECLINED]: [],
+    [BookingStatus.DECLINED]: [],
 
-      [BookingStatus.COMPLETED]: [],
+    [BookingStatus.COMPLETED]: [],
 
-      [BookingStatus.CANCELLED]: [],
-    };
+    [BookingStatus.CANCELLED]: [],
+  };
 
   const allowedStatuses =
-    validTransitions[
-      booking.status
-    ] ?? [];
+    validTransitions[booking.status] ?? [];
 
   if (
     !allowedStatuses.includes(
@@ -876,19 +792,16 @@ const updateBookingStatus = async (
           category: true,
         },
       },
-
-      payment: true,
-
-      review: true,
     },
   });
 };
 
 /**
  * ============================================================
- * CANCEL BOOKING
+ * CUSTOMER - CANCEL
  * ============================================================
  */
+
 const cancelBooking = async (
   id: string,
   customerId: string
@@ -907,10 +820,7 @@ const cancelBooking = async (
     );
   }
 
-  if (
-    booking.customerId !==
-    customerId
-  ) {
+  if (booking.customerId !== customerId) {
     throw new AppError(
       StatusCodes.FORBIDDEN,
       "You are not authorized to cancel this booking"
@@ -928,8 +838,7 @@ const cancelBooking = async (
   }
 
   if (
-    booking.status ===
-      BookingStatus.PAID ||
+    booking.status === BookingStatus.PAID ||
     booking.status ===
       BookingStatus.IN_PROGRESS ||
     booking.status ===
@@ -947,8 +856,7 @@ const cancelBooking = async (
     },
 
     data: {
-      status:
-        BookingStatus.CANCELLED,
+      status: BookingStatus.CANCELLED,
     },
 
     include: {
@@ -965,26 +873,100 @@ const cancelBooking = async (
           category: true,
         },
       },
-
-      payment: true,
-
-      review: true,
     },
   });
 };
 
 /**
  * ============================================================
- * EXPORT
+ * ADMIN - DELETE BOOKING
  * ============================================================
  */
+
+const deleteBooking = async (
+  id: string
+) => {
+  const booking =
+    await prisma.booking.findUnique({
+      where: {
+        id,
+      },
+
+      include: {
+        payment: true,
+        review: true,
+      },
+    });
+
+  if (!booking) {
+    throw new AppError(
+      StatusCodes.NOT_FOUND,
+      "Booking not found"
+    );
+  }
+
+  /**
+   * Prevent deleting paid bookings accidentally.
+   *
+   * If you want admin to be able to delete
+   * paid bookings too, remove this block.
+   */
+  if (
+    booking.payment &&
+    booking.payment.status ===
+      "COMPLETED"
+  ) {
+    throw new AppError(
+      StatusCodes.BAD_REQUEST,
+      "Completed payment booking cannot be deleted"
+    );
+  }
+
+  /**
+   * Delete related records first if
+   * your Prisma schema does not use Cascade.
+   */
+
+  await prisma.$transaction(
+    async (tx) => {
+      if (booking.review) {
+        await tx.review.delete({
+          where: {
+            id: booking.review.id,
+          },
+        });
+      }
+
+      if (booking.payment) {
+        await tx.payment.delete({
+          where: {
+            id: booking.payment.id,
+          },
+        });
+      }
+
+      await tx.booking.delete({
+        where: {
+          id,
+        },
+      });
+    }
+  );
+
+  return {
+    id,
+    deleted: true,
+  };
+};
+
 export const BookingService = {
   createBooking,
   getAllBookings,
-  getTechnicianBookings,
   getCustomerBookings,
+  getTechnicianBookings,
   getSingleBooking,
   updateBooking,
   updateBookingStatus,
   cancelBooking,
+  deleteBooking,
 };

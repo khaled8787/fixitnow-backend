@@ -1,30 +1,21 @@
-import {
-  BookingStatus,
-  Role,
-} from "@prisma/client";
-import {
-  Request,
-  Response,
-} from "express";
+import { BookingStatus, Role } from "@prisma/client";
+import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 
 import catchAsync from "../../utils/catchAsync";
 import sendResponse from "../../utils/sendResponse";
 
-import {
-  IBookingFilterRequest,
-} from "./booking.interface";
-
 import { BookingService } from "./booking.service";
+import { IBookingFilterRequest } from "./booking.interface";
 
 /**
- * Create Booking
+ * ============================================================
+ * CUSTOMER - CREATE BOOKING
+ * ============================================================
  */
+
 const createBooking = catchAsync(
-  async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+  async (req: Request, res: Response) => {
     const userId = req.user!.userId;
 
     const result =
@@ -42,22 +33,96 @@ const createBooking = catchAsync(
 );
 
 /**
- * Get Bookings
- *
- * ADMIN:
- *      Get all bookings
- *
- * TECHNICIAN:
- *      Get only technician's assigned bookings
- *
- * CUSTOMER:
- *      Get only customer's own bookings
+ * ============================================================
+ * CUSTOMER - MY BOOKINGS
+ * ============================================================
  */
-const getAllBookings = catchAsync(
-  async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+
+const getMyBookings = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+
+    const filters: IBookingFilterRequest = {
+      searchTerm:
+        typeof req.query.searchTerm === "string"
+          ? req.query.searchTerm
+          : undefined,
+
+      status:
+        typeof req.query.status === "string"
+          ? (req.query.status as BookingStatus)
+          : undefined,
+
+      bookingDate:
+        typeof req.query.bookingDate === "string"
+          ? req.query.bookingDate
+          : undefined,
+    };
+
+    const result =
+      await BookingService.getCustomerBookings(
+        userId,
+        filters
+      );
+
+    sendResponse(res, StatusCodes.OK, {
+      success: true,
+      message: "Your bookings retrieved successfully",
+      data: result,
+    });
+  }
+);
+
+/**
+ * ============================================================
+ * TECHNICIAN - MY BOOKINGS
+ * ============================================================
+ */
+
+const getTechnicianBookings = catchAsync(
+  async (req: Request, res: Response) => {
+    const userId = req.user!.userId;
+
+    const filters: IBookingFilterRequest = {
+      searchTerm:
+        typeof req.query.searchTerm === "string"
+          ? req.query.searchTerm
+          : undefined,
+
+      status:
+        typeof req.query.status === "string"
+          ? (req.query.status as BookingStatus)
+          : undefined,
+
+      bookingDate:
+        typeof req.query.bookingDate === "string"
+          ? req.query.bookingDate
+          : undefined,
+    };
+
+    const result =
+      await BookingService.getTechnicianBookings(
+        userId,
+        filters
+      );
+
+    sendResponse(res, StatusCodes.OK, {
+      success: true,
+      message:
+        "Technician bookings retrieved successfully",
+      data: result,
+    });
+  }
+);
+
+/**
+ * ============================================================
+ * ADMIN - ALL BOOKINGS
+ * ============================================================
+ */
+
+const getAdminBookings = catchAsync(
+  async (req: Request, res: Response) => {
     const filters: IBookingFilterRequest = {
       searchTerm:
         typeof req.query.searchTerm === "string"
@@ -80,51 +145,6 @@ const getAllBookings = catchAsync(
           : undefined,
     };
 
-    const user = req.user!;
-
-    /**
-     * TECHNICIAN
-     */
-    if (user.role === Role.TECHNICIAN) {
-      const result =
-        await BookingService.getTechnicianBookings(
-          user.userId,
-          filters
-        );
-
-      sendResponse(res, StatusCodes.OK, {
-        success: true,
-        message:
-          "Technician bookings retrieved successfully",
-        data: result,
-      });
-
-      return;
-    }
-
-    /**
-     * CUSTOMER
-     */
-    if (user.role === Role.CUSTOMER) {
-      const result =
-        await BookingService.getCustomerBookings(
-          user.userId,
-          filters
-        );
-
-      sendResponse(res, StatusCodes.OK, {
-        success: true,
-        message:
-          "Customer bookings retrieved successfully",
-        data: result,
-      });
-
-      return;
-    }
-
-    /**
-     * ADMIN
-     */
     const result =
       await BookingService.getAllBookings(
         filters
@@ -132,53 +152,50 @@ const getAllBookings = catchAsync(
 
     sendResponse(res, StatusCodes.OK, {
       success: true,
-      message:
-        "Bookings retrieved successfully",
+      message: "All bookings retrieved successfully",
       data: result,
     });
   }
 );
 
 /**
- * Get Single Booking
- *
- * Authorization is handled inside service.
+ * ============================================================
+ * SINGLE BOOKING
+ * ============================================================
  */
+
 const getSingleBooking = catchAsync(
-  async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+  async (req: Request, res: Response) => {
     const id = Array.isArray(req.params.id)
       ? req.params.id[0]
       : req.params.id;
 
-    const user = req.user!;
+    const userId = req.user!.userId;
+    const role = req.user!.role;
 
     const result =
       await BookingService.getSingleBooking(
         id,
-        user.userId,
-        user.role
+        userId,
+        role
       );
 
     sendResponse(res, StatusCodes.OK, {
       success: true,
-      message:
-        "Booking retrieved successfully",
+      message: "Booking retrieved successfully",
       data: result,
     });
   }
 );
 
 /**
- * Update Booking
+ * ============================================================
+ * CUSTOMER - UPDATE BOOKING
+ * ============================================================
  */
+
 const updateBooking = catchAsync(
-  async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+  async (req: Request, res: Response) => {
     const id = Array.isArray(req.params.id)
       ? req.params.id[0]
       : req.params.id;
@@ -194,21 +211,20 @@ const updateBooking = catchAsync(
 
     sendResponse(res, StatusCodes.OK, {
       success: true,
-      message:
-        "Booking updated successfully",
+      message: "Booking updated successfully",
       data: result,
     });
   }
 );
 
 /**
- * Update Booking Status
+ * ============================================================
+ * TECHNICIAN - UPDATE STATUS
+ * ============================================================
  */
+
 const updateBookingStatus = catchAsync(
-  async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+  async (req: Request, res: Response) => {
     const id = Array.isArray(req.params.id)
       ? req.params.id[0]
       : req.params.id;
@@ -224,21 +240,20 @@ const updateBookingStatus = catchAsync(
 
     sendResponse(res, StatusCodes.OK, {
       success: true,
-      message:
-        "Booking status updated successfully",
+      message: "Booking status updated successfully",
       data: result,
     });
   }
 );
 
 /**
- * Cancel Booking
+ * ============================================================
+ * CUSTOMER - CANCEL BOOKING
+ * ============================================================
  */
+
 const cancelBooking = catchAsync(
-  async (
-    req: Request,
-    res: Response
-  ): Promise<void> => {
+  async (req: Request, res: Response) => {
     const id = Array.isArray(req.params.id)
       ? req.params.id[0]
       : req.params.id;
@@ -253,8 +268,30 @@ const cancelBooking = catchAsync(
 
     sendResponse(res, StatusCodes.OK, {
       success: true,
-      message:
-        "Booking cancelled successfully",
+      message: "Booking cancelled successfully",
+      data: result,
+    });
+  }
+);
+
+/**
+ * ============================================================
+ * ADMIN - DELETE BOOKING
+ * ============================================================
+ */
+
+const deleteBooking = catchAsync(
+  async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id)
+      ? req.params.id[0]
+      : req.params.id;
+
+    const result =
+      await BookingService.deleteBooking(id);
+
+    sendResponse(res, StatusCodes.OK, {
+      success: true,
+      message: "Booking deleted successfully",
       data: result,
     });
   }
@@ -262,9 +299,12 @@ const cancelBooking = catchAsync(
 
 export const BookingController = {
   createBooking,
-  getAllBookings,
+  getMyBookings,
+  getTechnicianBookings,
+  getAdminBookings,
   getSingleBooking,
   updateBooking,
   updateBookingStatus,
   cancelBooking,
+  deleteBooking,
 };

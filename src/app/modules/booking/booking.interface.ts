@@ -27,7 +27,7 @@ export interface IBookingStatusPayload {
 export interface IBookingFilterRequest {
   searchTerm?: string;
   status?: BookingStatus;
-  bookingDate?: string;
+  bookingDate?: Date | string;
   technicianId?: string;
 }
 
