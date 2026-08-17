@@ -9,15 +9,7 @@ import { BookingValidation } from "./booking.validation";
 
 const router = Router();
 
-/**
- * ============================================================
- * CUSTOMER
- * ============================================================
- */
 
-/**
- * Create booking
- */
 router.post(
   "/",
   auth(Role.CUSTOMER),
