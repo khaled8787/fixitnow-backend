@@ -2,6 +2,7 @@ import {
   PaymentProvider,
   PaymentStatus,
 } from "@prisma/client";
+
 import { z } from "zod";
 
 const createPaymentValidationSchema =
@@ -11,12 +12,18 @@ const createPaymentValidationSchema =
         bookingId: z
           .string()
           .trim()
-          .min(1, "Booking ID is required"),
+          .min(
+            1,
+            "Booking ID is required"
+          ),
 
-        provider: z.enum(PaymentProvider, {
-          error:
-            "Provider must be either STRIPE or SSLCOMMERZ",
-        }),
+        provider: z.enum(
+          PaymentProvider,
+          {
+            error:
+              "Provider must be STRIPE",
+          }
+        ),
       })
       .strict(),
   });
@@ -25,10 +32,13 @@ const updatePaymentStatusValidationSchema =
   z.object({
     body: z
       .object({
-        status: z.enum(PaymentStatus, {
-          error:
-            "Status must be PENDING, COMPLETED or FAILED",
-        }),
+        status: z.enum(
+          PaymentStatus,
+          {
+            error:
+              "Invalid payment status",
+          }
+        ),
       })
       .strict(),
   });

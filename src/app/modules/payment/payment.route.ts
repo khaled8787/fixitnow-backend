@@ -8,6 +8,10 @@ import { PaymentValidation } from "./payment.validation";
 
 const router = Router();
 
+/**
+ * CUSTOMER
+ * Create / initialize a payment for an accepted booking
+ */
 router.post(
   "/",
   auth(Role.CUSTOMER),
@@ -17,17 +21,26 @@ router.post(
   PaymentController.createPayment
 );
 
+/**
+ * ADMIN
+ * Get all payments
+ */
 router.get(
   "/",
   auth(Role.ADMIN),
   PaymentController.getAllPayments
 );
 
+/**
+ * CUSTOMER / ADMIN
+ * Get single payment
+ */
 router.get(
   "/:id",
   auth(Role.ADMIN, Role.CUSTOMER),
   PaymentController.getSinglePayment
 );
+
 
 router.patch(
   "/:id/status",

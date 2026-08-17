@@ -1,5 +1,4 @@
 import {
-  Payment,
   PaymentProvider,
   PaymentStatus,
 } from "@prisma/client";
@@ -9,16 +8,13 @@ export interface IPaymentPayload {
   provider: PaymentProvider;
 }
 
+export interface IPaymentStatusPayload {
+  status: PaymentStatus;
+}
+
 export interface IPaymentFilterRequest {
   status?: PaymentStatus;
   provider?: PaymentProvider;
   bookingId?: string;
   transactionId?: string;
 }
-
-export interface IPaymentStatusPayload {
-  status: PaymentStatus;
-}
-
-export interface IPaymentResponse
-  extends Payment {}

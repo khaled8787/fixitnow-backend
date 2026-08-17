@@ -141,23 +141,35 @@ model Booking {
 }
 
 model Payment {
-  id            String          @id @default(cuid())
-  bookingId     String          @unique
-  userId        String
-  transactionId String          @unique
-  amount        Decimal
-  provider      PaymentProvider @default(STRIPE)
-  status        PaymentStatus   @default(PENDING)
-  paidAt        DateTime?
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  booking       Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String          @id @default(cuid())
+  bookingId             String          @unique
+  userId                String
+  transactionId         String          @unique
+  stripePaymentIntentId String?         @unique
+  amount                Decimal
+  provider              PaymentProvider @default(STRIPE)
+  status                PaymentStatus   @default(PENDING)
+  paidAt                DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  booking Booking @relation(
+    fields: [bookingId],
+    references: [id],
+    onDelete: Cascade
+  )
+
+  user User @relation(
+    fields: [userId],
+    references: [id],
+    onDelete: Cascade
+  )
 
   @@index([bookingId])
   @@index([userId])
   @@index([status])
   @@index([transactionId])
+  @@index([stripePaymentIntentId])
 }
 
 model Review {

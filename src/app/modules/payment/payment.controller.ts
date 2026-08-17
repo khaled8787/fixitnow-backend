@@ -7,6 +7,12 @@ import sendResponse from "../../utils/sendResponse";
 import { IPaymentFilterRequest } from "./payment.interface";
 import { PaymentService } from "./payment.service";
 
+/**
+ * ============================================================
+ * CREATE PAYMENT
+ * ============================================================
+ */
+
 const createPayment = catchAsync(
   async (req: Request, res: Response) => {
     const userId = req.user!.userId;
@@ -23,6 +29,12 @@ const createPayment = catchAsync(
     });
   }
 );
+
+/**
+ * ============================================================
+ * GET ALL PAYMENTS
+ * ============================================================
+ */
 
 const getAllPayments = catchAsync(
   async (req: Request, res: Response) => {
@@ -59,6 +71,12 @@ const getAllPayments = catchAsync(
   }
 );
 
+/**
+ * ============================================================
+ * GET SINGLE PAYMENT
+ * ============================================================
+ */
+
 const getSinglePayment = catchAsync(
   async (req: Request, res: Response) => {
     const id = Array.isArray(req.params.id)
@@ -66,7 +84,11 @@ const getSinglePayment = catchAsync(
       : req.params.id;
 
     const result =
-      await PaymentService.getSinglePayment(id);
+      await PaymentService.getSinglePayment(
+        id,
+        req.user!.userId,
+        req.user!.role
+      );
 
     sendResponse(res, StatusCodes.OK, {
       success: true,
@@ -75,6 +97,12 @@ const getSinglePayment = catchAsync(
     });
   }
 );
+
+/**
+ * ============================================================
+ * UPDATE PAYMENT STATUS
+ * ============================================================
+ */
 
 const updatePaymentStatus = catchAsync(
   async (req: Request, res: Response) => {
@@ -96,11 +124,21 @@ const updatePaymentStatus = catchAsync(
   }
 );
 
+/**
+ * ============================================================
+ * STRIPE WEBHOOK
+ * ============================================================
+ */
+
 const handleStripeWebhook = catchAsync(
   async (req: Request, res: Response) => {
-    const signature = req.headers["stripe-signature"];
+    const signature =
+      req.headers["stripe-signature"];
 
-    if (!signature || Array.isArray(signature)) {
+    if (
+      !signature ||
+      Array.isArray(signature)
+    ) {
       res.status(StatusCodes.BAD_REQUEST).json({
         success: false,
         message: "Stripe signature is required",
@@ -109,13 +147,19 @@ const handleStripeWebhook = catchAsync(
       return;
     }
 
-    const rawBody = Buffer.isBuffer(req.body)
-      ? req.body
-      : Buffer.from(req.body);
+    if (!Buffer.isBuffer(req.body)) {
+      res.status(StatusCodes.BAD_REQUEST).json({
+        success: false,
+        message:
+          "Stripe webhook requires raw request body",
+      });
+
+      return;
+    }
 
     const result =
       await PaymentService.handleStripeWebhook(
-        rawBody,
+        req.body,
         signature
       );
 

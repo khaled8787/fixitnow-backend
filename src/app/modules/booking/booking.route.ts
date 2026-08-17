@@ -108,15 +108,7 @@ router.delete(
   BookingController.deleteBooking
 );
 
-/**
- * ============================================================
- * SINGLE BOOKING
- * ============================================================
- *
- * Customer -> own booking
- * Technician -> assigned booking
- * Admin -> any booking
- */
+
 router.get(
   "/:id",
   auth(
