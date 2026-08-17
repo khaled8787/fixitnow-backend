@@ -1,14 +1,44 @@
-import { NextFunction, Request, RequestHandler, Response } from "express";
+import {
+  NextFunction,
+  Request,
+  RequestHandler,
+  Response,
+} from "express";
+
 import { ZodType } from "zod";
 
-const validateRequest = <T>(schema: ZodType<T>): RequestHandler => {
+const validateRequest = (
+  schema: ZodType
+): RequestHandler => {
   return async (
     req: Request,
     _res: Response,
     next: NextFunction
   ): Promise<void> => {
     try {
-      req.body = await schema.parseAsync(req.body);
+      const parsedData =
+        await schema.parseAsync({
+          body: req.body,
+          params: req.params,
+          query: req.query,
+        });
+
+      if (parsedData && typeof parsedData === "object") {
+        const data = parsedData as {
+          body?: unknown;
+          params?: unknown;
+          query?: unknown;
+        };
+
+        if (data.body !== undefined) {
+          req.body = data.body;
+        }
+
+        if (data.params !== undefined) {
+          Object.assign(req.params, data.params);
+        }
+      }
+
       next();
     } catch (error) {
       next(error);
