@@ -121,7 +121,7 @@ model Booking {
   serviceId    String
   servicePrice Decimal
   bookingDate  DateTime
-  bookingTime DateTime
+  bookingTime  DateTime
   address      String
   notes        String?
   status       BookingStatus     @default(REQUESTED)
@@ -153,23 +153,13 @@ model Payment {
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
-  booking Booking @relation(
-    fields: [bookingId],
-    references: [id],
-    onDelete: Cascade
-  )
-
-  user User @relation(
-    fields: [userId],
-    references: [id],
-    onDelete: Cascade
-  )
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([bookingId])
   @@index([userId])
   @@index([status])
   @@index([transactionId])
-  @@index([stripePaymentIntentId])
 }
 
 model Review {
