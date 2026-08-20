@@ -23,7 +23,10 @@ const validateRequest = (
           query: req.query,
         });
 
-      if (parsedData && typeof parsedData === "object") {
+      if (
+        parsedData &&
+        typeof parsedData === "object"
+      ) {
         const data = parsedData as {
           body?: unknown;
           params?: unknown;
@@ -32,10 +35,6 @@ const validateRequest = (
 
         if (data.body !== undefined) {
           req.body = data.body;
-        }
-
-        if (data.params !== undefined) {
-          Object.assign(req.params, data.params);
         }
       }
 
