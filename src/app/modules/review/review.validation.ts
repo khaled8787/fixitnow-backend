@@ -1,59 +1,40 @@
 import { z } from "zod";
 
-const createReviewValidationSchema = z
-  .object({
-    bookingId: z.string().trim().min(1, {
-      message: "Booking ID is required",
+const createReviewValidationSchema =
+  z.object({
+    body: z.object({
+      bookingId: z.string().min(1),
+
+      rating: z
+        .number()
+        .int()
+        .min(1)
+        .max(5),
+
+      comment: z
+        .string()
+        .trim()
+        .max(1000)
+        .optional(),
     }),
+  });
 
-    rating: z
-      .number()
-      .int({
-        message: "Rating must be an integer",
-      })
-      .min(1, {
-        message: "Rating must be at least 1",
-      })
-      .max(5, {
-        message: "Rating cannot exceed 5",
-      }),
+const updateReviewValidationSchema =
+  z.object({
+    body: z.object({
+      rating: z
+        .number()
+        .int()
+        .min(1)
+        .max(5)
+        .optional(),
 
-    comment: z
-      .string()
-      .trim()
-      .max(1000, {
-        message: "Comment cannot exceed 1000 characters",
-      })
-      .optional(),
-  })
-  .strict();
-
-const updateReviewValidationSchema = z
-  .object({
-    rating: z
-      .number()
-      .int({
-        message: "Rating must be an integer",
-      })
-      .min(1, {
-        message: "Rating must be at least 1",
-      })
-      .max(5, {
-        message: "Rating cannot exceed 5",
-      })
-      .optional(),
-
-    comment: z
-      .string()
-      .trim()
-      .max(1000, {
-        message: "Comment cannot exceed 1000 characters",
-      })
-      .optional(),
-  })
-  .strict()
-  .refine((data) => Object.keys(data).length > 0, {
-    message: "At least one field must be provided for update",
+      comment: z
+        .string()
+        .trim()
+        .max(1000)
+        .optional(),
+    }),
   });
 
 export const ReviewValidation = {

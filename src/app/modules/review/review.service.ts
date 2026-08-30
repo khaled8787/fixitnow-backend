@@ -1,160 +1,122 @@
-import {
-  BookingStatus,
-  PaymentStatus,
-  Prisma,
-} from "@prisma/client";
-
+import { Prisma } from "@prisma/client";
 import { StatusCodes } from "http-status-codes";
 
 import AppError from "../../errors/AppError";
 import { prisma } from "../../utils/prisma";
 
 import {
-  IReviewPayload,
   IReviewFilterRequest,
+  IReviewPayload,
   IReviewUpdatePayload,
 } from "./review.interface";
 
-/* ============================================================
-   CREATE REVIEW
-============================================================ */
+/**
+ * ============================================================
+ * CREATE REVIEW
+ * ============================================================
+ */
 
 const createReview = async (
   customerId: string,
-  payload: IReviewPayload,
+  payload: IReviewPayload
 ) => {
-  /* ----------------------------------------------------------
-     CHECK CUSTOMER
-  ---------------------------------------------------------- */
-
-  const customer = await prisma.user.findUnique({
-    where: {
-      id: customerId,
-    },
-  });
-
-  if (!customer) {
-    throw new AppError(
-      StatusCodes.NOT_FOUND,
-      "Customer not found",
-    );
-  }
-
-  /* ----------------------------------------------------------
-     GET BOOKING
-  ---------------------------------------------------------- */
-
   const booking = await prisma.booking.findUnique({
     where: {
       id: payload.bookingId,
     },
-
     include: {
-      review: true,
-
-      payment: true,
-
       service: true,
-
       technician: {
         include: {
           user: true,
         },
       },
+      customer: true,
+      review: true,
     },
   });
 
   if (!booking) {
     throw new AppError(
       StatusCodes.NOT_FOUND,
-      "Booking not found",
+      "Booking not found"
     );
   }
-
-  /* ----------------------------------------------------------
-     CUSTOMER OWNERSHIP
-  ---------------------------------------------------------- */
 
   if (booking.customerId !== customerId) {
     throw new AppError(
       StatusCodes.FORBIDDEN,
-      "You are not authorized to review this booking",
+      "You are not authorized to review this booking"
     );
   }
 
-  /* ----------------------------------------------------------
-     PAYMENT CHECK
-     
-     Review is allowed when:
-     
-     1. Booking status is PAID
-     
-     OR
-     
-     2. Related Payment status is COMPLETED
-     
-     COMPLETED booking status is NOT required.
-  ---------------------------------------------------------- */
-
-  const isBookingPaid =
-    booking.status === BookingStatus.PAID;
-
-  const isPaymentCompleted =
-    booking.payment?.status ===
-    PaymentStatus.COMPLETED;
-
-  if (
-    !isBookingPaid &&
-    !isPaymentCompleted
-  ) {
+  if (booking.status !== "COMPLETED") {
     throw new AppError(
       StatusCodes.BAD_REQUEST,
-      "Only paid bookings can be reviewed",
+      "You can only review completed bookings"
     );
   }
-
-  /* ----------------------------------------------------------
-     PREVENT DUPLICATE REVIEW
-  ---------------------------------------------------------- */
 
   if (booking.review) {
     throw new AppError(
       StatusCodes.BAD_REQUEST,
-      "Review already submitted for this booking",
+      "You have already reviewed this booking"
     );
   }
 
-  /* ----------------------------------------------------------
-     CREATE REVIEW + UPDATE TECHNICIAN RATING
-  ---------------------------------------------------------- */
+  if (
+    payload.rating < 1 ||
+    payload.rating > 5
+  ) {
+    throw new AppError(
+      StatusCodes.BAD_REQUEST,
+      "Rating must be between 1 and 5"
+    );
+  }
 
-  const result =
-    await prisma.$transaction(async (tx) => {
-      const review =
+  const review = await prisma.$transaction(
+    async (tx) => {
+      const createdReview =
         await tx.review.create({
           data: {
-            bookingId:
-              payload.bookingId,
-
+            bookingId: booking.id,
             customerId,
-
-            technicianId:
-              booking.technicianId,
-
-            rating:
-              payload.rating,
-
+            technicianId: booking.technicianId,
+            rating: payload.rating,
             comment:
-              payload.comment?.trim() ||
-              null,
+              payload.comment?.trim() || null,
+          },
+
+          include: {
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
+
+            technician: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                  },
+                },
+              },
+            },
+
+            booking: {
+              include: {
+                service: true,
+              },
+            },
           },
         });
 
-      /* ------------------------------------------------------
-         RECALCULATE TECHNICIAN RATING
-      ------------------------------------------------------ */
-
-      const aggregated =
+      const aggregate =
         await tx.review.aggregate({
           where: {
             technicianId:
@@ -177,115 +139,105 @@ const createReview = async (
 
         data: {
           averageRating:
-            aggregated._avg.rating ?? 0,
+            aggregate._avg.rating ?? 0,
 
           totalReviews:
-            aggregated._count.rating,
+            aggregate._count.rating,
         },
       });
 
-      /* ------------------------------------------------------
-         RETURN COMPLETE REVIEW
-      ------------------------------------------------------ */
+      return createdReview;
+    }
+  );
 
-      return tx.review.findUnique({
-        where: {
-          id: review.id,
-        },
-
-        include: {
-          customer: true,
-
-          technician: {
-            include: {
-              user: true,
-            },
-          },
-
-          booking: {
-            include: {
-              service: {
-                include: {
-                  category: true,
-                },
-              },
-
-              payment: true,
-            },
-          },
-        },
-      });
-    });
-
-  return result;
+  return review;
 };
 
-/* ============================================================
-   GET ALL REVIEWS
-============================================================ */
+/**
+ * ============================================================
+ * GET ALL REVIEWS
+ * ============================================================
+ */
 
 const getAllReviews = async (
-  filters: IReviewFilterRequest,
+  filters: IReviewFilterRequest
 ) => {
+  const {
+    technicianId,
+    bookingId,
+    rating,
+  } = filters;
+
   const where: Prisma.ReviewWhereInput = {};
 
-  if (filters.technicianId) {
-    where.technicianId =
-      filters.technicianId;
+  if (technicianId) {
+    where.technicianId = technicianId;
   }
 
-  if (filters.bookingId) {
-    where.bookingId =
-      filters.bookingId;
+  if (bookingId) {
+    where.bookingId = bookingId;
   }
 
   if (
-    typeof filters.rating === "number"
+    rating !== undefined &&
+    !Number.isNaN(rating)
   ) {
-    where.rating =
-      filters.rating;
+    where.rating = rating;
   }
 
   const reviews =
     await prisma.review.findMany({
       where,
 
-      orderBy: {
-        createdAt: "desc",
-      },
-
       include: {
-        customer: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
 
         technician: {
           include: {
-            user: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
           },
         },
 
         booking: {
           include: {
             service: {
-              include: {
-                category: true,
+              select: {
+                id: true,
+                title: true,
               },
             },
-
-            payment: true,
           },
         },
+      },
+
+      orderBy: {
+        createdAt: "desc",
       },
     });
 
   return reviews;
 };
 
-/* ============================================================
-   GET SINGLE REVIEW
-============================================================ */
+/**
+ * ============================================================
+ * GET SINGLE REVIEW
+ * ============================================================
+ */
 
 const getSingleReview = async (
-  id: string,
+  id: string
 ) => {
   const review =
     await prisma.review.findUnique({
@@ -294,23 +246,34 @@ const getSingleReview = async (
       },
 
       include: {
-        customer: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+          },
+        },
 
         technician: {
           include: {
-            user: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+              },
+            },
           },
         },
 
         booking: {
           include: {
             service: {
-              include: {
-                category: true,
+              select: {
+                id: true,
+                title: true,
               },
             },
-
-            payment: true,
           },
         },
       },
@@ -319,220 +282,199 @@ const getSingleReview = async (
   if (!review) {
     throw new AppError(
       StatusCodes.NOT_FOUND,
-      "Review not found",
+      "Review not found"
     );
   }
 
   return review;
 };
 
-/* ============================================================
-   UPDATE REVIEW
-============================================================ */
+/**
+ * ============================================================
+ * UPDATE REVIEW
+ * ============================================================
+ */
 
 const updateReview = async (
   id: string,
   customerId: string,
-  payload: IReviewUpdatePayload,
+  payload: IReviewUpdatePayload
 ) => {
   const review =
     await prisma.review.findUnique({
       where: {
         id,
       },
-
-      include: {
-        booking: {
-          include: {
-            payment: true,
-          },
-        },
-      },
     });
 
   if (!review) {
     throw new AppError(
       StatusCodes.NOT_FOUND,
-      "Review not found",
+      "Review not found"
     );
   }
-
-  /* ----------------------------------------------------------
-     OWNERSHIP
-  ---------------------------------------------------------- */
 
   if (
     review.customerId !== customerId
   ) {
     throw new AppError(
       StatusCodes.FORBIDDEN,
-      "You are not authorized to update this review",
+      "You are not authorized to update this review"
     );
   }
 
-  /* ----------------------------------------------------------
-     UPDATE + RECALCULATE RATING
-  ---------------------------------------------------------- */
+  if (
+    payload.rating !== undefined &&
+    (payload.rating < 1 ||
+      payload.rating > 5)
+  ) {
+    throw new AppError(
+      StatusCodes.BAD_REQUEST,
+      "Rating must be between 1 and 5"
+    );
+  }
 
-  const result =
-    await prisma.$transaction(async (tx) => {
-      const updatedReview =
-        await tx.review.update({
-          where: {
-            id,
-          },
-
-          data: {
-            ...(payload.rating !==
-              undefined && {
-              rating:
-                payload.rating,
-            }),
-
-            ...(payload.comment !==
-              undefined && {
-              comment:
-                payload.comment.trim() ||
-                null,
-            }),
-          },
-        });
-
-      const aggregated =
-        await tx.review.aggregate({
-          where: {
-            technicianId:
-              review.technicianId,
-          },
-
-          _avg: {
-            rating: true,
-          },
-
-          _count: {
-            rating: true,
-          },
-        });
-
-      await tx.technicianProfile.update({
-        where: {
-          id: review.technicianId,
-        },
-
-        data: {
-          averageRating:
-            aggregated._avg.rating ?? 0,
-
-          totalReviews:
-            aggregated._count.rating,
-        },
-      });
-
-      return tx.review.findUnique({
-        where: {
-          id: updatedReview.id,
-        },
-
-        include: {
-          customer: true,
-
-          technician: {
-            include: {
-              user: true,
+  const updatedReview =
+    await prisma.$transaction(
+      async (tx) => {
+        const updated =
+          await tx.review.update({
+            where: {
+              id,
             },
-          },
 
-          booking: {
+            data: {
+              ...(payload.rating !==
+              undefined
+                ? {
+                    rating:
+                      payload.rating,
+                  }
+                : {}),
+
+              ...(payload.comment !==
+              undefined
+                ? {
+                    comment:
+                      payload.comment.trim() ||
+                      null,
+                  }
+                : {}),
+            },
+
             include: {
-              service: {
-                include: {
-                  category: true,
+              customer: {
+                select: {
+                  id: true,
+                  name: true,
+                  image: true,
                 },
               },
 
-              payment: true,
-            },
-          },
-        },
-      });
-    });
-
-  return result;
-};
-
-/* ============================================================
-   DELETE REVIEW
-============================================================ */
-
-const deleteReview = async (
-  id: string,
-  customerId: string,
-) => {
-  const review =
-    await prisma.review.findUnique({
-      where: {
-        id,
-      },
-
-      include: {
-        booking: true,
-      },
-    });
-
-  if (!review) {
-    throw new AppError(
-      StatusCodes.NOT_FOUND,
-      "Review not found",
-    );
-  }
-
-  /* ----------------------------------------------------------
-     OWNERSHIP
-  ---------------------------------------------------------- */
-
-  if (
-    review.customerId !== customerId
-  ) {
-    throw new AppError(
-      StatusCodes.FORBIDDEN,
-      "You are not authorized to delete this review",
-    );
-  }
-
-  /* ----------------------------------------------------------
-     DELETE + RECALCULATE
-  ---------------------------------------------------------- */
-
-  const result =
-    await prisma.$transaction(async (tx) => {
-      const deletedReview =
-        await tx.review.delete({
-          where: {
-            id,
-          },
-
-          include: {
-            customer: true,
-
-            technician: {
-              include: {
-                user: true,
+              technician: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      name: true,
+                      image: true,
+                    },
+                  },
+                },
               },
-            },
 
-            booking: {
-              include: {
-                service: {
-                  include: {
-                    category: true,
+              booking: {
+                include: {
+                  service: {
+                    select: {
+                      id: true,
+                      title: true,
+                    },
                   },
                 },
               },
             },
+          });
+
+        const aggregate =
+          await tx.review.aggregate({
+            where: {
+              technicianId:
+                review.technicianId,
+            },
+
+            _avg: {
+              rating: true,
+            },
+
+            _count: {
+              rating: true,
+            },
+          });
+
+        await tx.technicianProfile.update({
+          where: {
+            id: review.technicianId,
+          },
+
+          data: {
+            averageRating:
+              aggregate._avg.rating ?? 0,
+
+            totalReviews:
+              aggregate._count.rating,
           },
         });
 
-      const aggregated =
+        return updated;
+      }
+    );
+
+  return updatedReview;
+};
+
+/**
+ * ============================================================
+ * DELETE REVIEW
+ * ============================================================
+ */
+
+const deleteReview = async (
+  id: string,
+  customerId: string
+) => {
+  const review =
+    await prisma.review.findUnique({
+      where: {
+        id,
+      },
+    });
+
+  if (!review) {
+    throw new AppError(
+      StatusCodes.NOT_FOUND,
+      "Review not found"
+    );
+  }
+
+  if (
+    review.customerId !== customerId
+  ) {
+    throw new AppError(
+      StatusCodes.FORBIDDEN,
+      "You are not authorized to delete this review"
+    );
+  }
+
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.review.delete({
+        where: {
+          id,
+        },
+      });
+
+      const aggregate =
         await tx.review.aggregate({
           where: {
             technicianId:
@@ -555,22 +497,20 @@ const deleteReview = async (
 
         data: {
           averageRating:
-            aggregated._avg.rating ?? 0,
+            aggregate._avg.rating ?? 0,
 
           totalReviews:
-            aggregated._count.rating,
+            aggregate._count.rating,
         },
       });
+    }
+  );
 
-      return deletedReview;
-    });
-
-  return result;
+  return {
+    id,
+    deleted: true,
+  };
 };
-
-/* ============================================================
-   EXPORT
-============================================================ */
 
 export const ReviewService = {
   createReview,
