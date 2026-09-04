@@ -24,18 +24,25 @@ const createReview = async (
     where: {
       id: payload.bookingId,
     },
+
     include: {
       service: true,
+
       technician: {
         include: {
           user: true,
         },
       },
+
       customer: true,
+
       review: true,
     },
   });
 
+  /**
+   * Booking must exist
+   */
   if (!booking) {
     throw new AppError(
       StatusCodes.NOT_FOUND,
@@ -43,6 +50,9 @@ const createReview = async (
     );
   }
 
+  /**
+   * Only booking owner can review
+   */
   if (booking.customerId !== customerId) {
     throw new AppError(
       StatusCodes.FORBIDDEN,
@@ -50,13 +60,28 @@ const createReview = async (
     );
   }
 
-  if (booking.status !== "COMPLETED") {
+  /**
+   * IMPORTANT:
+   *
+   * Review eligibility is based on Booking.status === PAID.
+   *
+   * Do NOT check COMPLETED here.
+   * Do NOT check paymentStatus here.
+   */
+  if (
+    String(booking.status)
+      .trim()
+      .toUpperCase() !== "PAID"
+  ) {
     throw new AppError(
       StatusCodes.BAD_REQUEST,
-      "You can only review completed bookings"
+      "You can only review paid bookings"
     );
   }
 
+  /**
+   * One review per booking
+   */
   if (booking.review) {
     throw new AppError(
       StatusCodes.BAD_REQUEST,
@@ -64,6 +89,9 @@ const createReview = async (
     );
   }
 
+  /**
+   * Rating validation
+   */
   if (
     payload.rating < 1 ||
     payload.rating > 5
@@ -74,6 +102,9 @@ const createReview = async (
     );
   }
 
+  /**
+   * Create review + update technician rating
+   */
   const review = await prisma.$transaction(
     async (tx) => {
       const createdReview =
@@ -116,6 +147,9 @@ const createReview = async (
           },
         });
 
+      /**
+       * Recalculate technician rating
+       */
       const aggregate =
         await tx.review.aggregate({
           where: {
@@ -314,6 +348,9 @@ const updateReview = async (
     );
   }
 
+  /**
+   * Only review owner can update
+   */
   if (
     review.customerId !== customerId
   ) {
@@ -323,10 +360,15 @@ const updateReview = async (
     );
   }
 
+  /**
+   * Rating validation
+   */
   if (
     payload.rating !== undefined &&
-    (payload.rating < 1 ||
-      payload.rating > 5)
+    (
+      payload.rating < 1 ||
+      payload.rating > 5
+    )
   ) {
     throw new AppError(
       StatusCodes.BAD_REQUEST,
@@ -396,6 +438,9 @@ const updateReview = async (
             },
           });
 
+        /**
+         * Recalculate technician rating
+         */
         const aggregate =
           await tx.review.aggregate({
             where: {
@@ -457,6 +502,9 @@ const deleteReview = async (
     );
   }
 
+  /**
+   * Only review owner can delete
+   */
   if (
     review.customerId !== customerId
   ) {
@@ -474,6 +522,9 @@ const deleteReview = async (
         },
       });
 
+      /**
+       * Recalculate technician rating
+       */
       const aggregate =
         await tx.review.aggregate({
           where: {
