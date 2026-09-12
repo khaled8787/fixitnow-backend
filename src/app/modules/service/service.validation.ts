@@ -35,6 +35,12 @@ const createServiceValidationSchema = z.object({
       .trim()
       .url("Image must be a valid URL")
       .optional(),
+
+    technicianId: z
+      .string()
+      .trim()
+      .min(1, "Technician ID cannot be empty")
+      .optional(),
   }),
 });
 
@@ -71,10 +77,7 @@ const updateServiceValidationSchema = z.object({
       duration: z
         .int("Duration must be an integer")
         .min(15, "Duration must be at least 15 minutes")
-        .max(
-          1440,
-          "Duration must be an integer between 15 and 1440",
-        )
+        .max(1440, "Duration cannot exceed 1440 minutes")
         .optional(),
 
       image: z
@@ -84,6 +87,12 @@ const updateServiceValidationSchema = z.object({
         .optional(),
 
       isActive: z.boolean().optional(),
+
+      technicianId: z
+        .string()
+        .trim()
+        .min(1, "Technician ID cannot be empty")
+        .optional(),
     })
     .refine((data) => Object.keys(data).length > 0, {
       message: "At least one field must be provided for update",

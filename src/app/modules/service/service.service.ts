@@ -1,8 +1,9 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { StatusCodes } from "http-status-codes";
 
 import { prisma } from "../../utils/prisma";
 import AppError from "../../errors/AppError";
+
 import {
   IServiceFilterRequest,
   IServicePayload,
@@ -10,20 +11,51 @@ import {
 } from "./service.interface";
 
 const createService = async (
-  technicianId: string,
+  userId: string,
+  role: Role,
   payload: IServicePayload
 ) => {
-  const technician = await prisma.technicianProfile.findUnique({
-    where: {
-      userId: technicianId,
-    },
-  });
+  let technicianId: string;
 
-  if (!technician) {
-    throw new AppError(
-      StatusCodes.NOT_FOUND,
-      "Technician profile not found"
-    );
+  if (role === Role.ADMIN) {
+    if (!payload.technicianId) {
+      throw new AppError(
+        StatusCodes.BAD_REQUEST,
+        "Technician ID is required when admin creates a service"
+      );
+    }
+
+    const technician =
+      await prisma.technicianProfile.findUnique({
+        where: {
+          id: payload.technicianId,
+        },
+      });
+
+    if (!technician) {
+      throw new AppError(
+        StatusCodes.NOT_FOUND,
+        "Technician profile not found"
+      );
+    }
+
+    technicianId = technician.id;
+  } else {
+    const technician =
+      await prisma.technicianProfile.findUnique({
+        where: {
+          userId,
+        },
+      });
+
+    if (!technician) {
+      throw new AppError(
+        StatusCodes.NOT_FOUND,
+        "Technician profile not found"
+      );
+    }
+
+    technicianId = technician.id;
   }
 
   const category = await prisma.category.findUnique({
@@ -41,7 +73,7 @@ const createService = async (
 
   const service = await prisma.service.create({
     data: {
-      technicianId: technician.id,
+      technicianId,
       categoryId: payload.categoryId,
       title: payload.title.trim(),
       description: payload.description.trim(),
@@ -149,23 +181,10 @@ const getSingleService = async (id: string) => {
 
 const updateService = async (
   id: string,
-  technicianId: string,
+  userId: string,
+  role: Role,
   payload: IServiceUpdatePayload
 ) => {
-  const technician =
-    await prisma.technicianProfile.findUnique({
-      where: {
-        userId: technicianId,
-      },
-    });
-
-  if (!technician) {
-    throw new AppError(
-      StatusCodes.NOT_FOUND,
-      "Technician profile not found"
-    );
-  }
-
   const existingService =
     await prisma.service.findUnique({
       where: {
@@ -180,13 +199,29 @@ const updateService = async (
     );
   }
 
-  if (
-    existingService.technicianId !== technician.id
-  ) {
-    throw new AppError(
-      StatusCodes.FORBIDDEN,
-      "You are not authorized to update this service"
-    );
+  if (role === Role.TECHNICIAN) {
+    const technician =
+      await prisma.technicianProfile.findUnique({
+        where: {
+          userId,
+        },
+      });
+
+    if (!technician) {
+      throw new AppError(
+        StatusCodes.NOT_FOUND,
+        "Technician profile not found"
+      );
+    }
+
+    if (
+      existingService.technicianId !== technician.id
+    ) {
+      throw new AppError(
+        StatusCodes.FORBIDDEN,
+        "You are not authorized to update this service"
+      );
+    }
   }
 
   if (payload.categoryId) {
@@ -203,6 +238,31 @@ const updateService = async (
         "Category not found"
       );
     }
+  }
+
+  let technicianId:
+    | string
+    | undefined = undefined;
+
+  if (
+    role === Role.ADMIN &&
+    payload.technicianId
+  ) {
+    const technician =
+      await prisma.technicianProfile.findUnique({
+        where: {
+          id: payload.technicianId,
+        },
+      });
+
+    if (!technician) {
+      throw new AppError(
+        StatusCodes.NOT_FOUND,
+        "Technician profile not found"
+      );
+    }
+
+    technicianId = technician.id;
   }
 
   const updatedService =
@@ -241,6 +301,10 @@ const updateService = async (
         ...(payload.isActive !== undefined && {
           isActive: payload.isActive,
         }),
+
+        ...(technicianId && {
+          technicianId,
+        }),
       },
 
       include: {
@@ -254,22 +318,9 @@ const updateService = async (
 
 const deleteService = async (
   id: string,
-  technicianId: string
+  userId: string,
+  role: Role
 ) => {
-  const technician =
-    await prisma.technicianProfile.findUnique({
-      where: {
-        userId: technicianId,
-      },
-    });
-
-  if (!technician) {
-    throw new AppError(
-      StatusCodes.NOT_FOUND,
-      "Technician profile not found"
-    );
-  }
-
   const existingService =
     await prisma.service.findUnique({
       where: {
@@ -284,13 +335,29 @@ const deleteService = async (
     );
   }
 
-  if (
-    existingService.technicianId !== technician.id
-  ) {
-    throw new AppError(
-      StatusCodes.FORBIDDEN,
-      "You are not authorized to delete this service"
-    );
+  if (role === Role.TECHNICIAN) {
+    const technician =
+      await prisma.technicianProfile.findUnique({
+        where: {
+          userId,
+        },
+      });
+
+    if (!technician) {
+      throw new AppError(
+        StatusCodes.NOT_FOUND,
+        "Technician profile not found"
+      );
+    }
+
+    if (
+      existingService.technicianId !== technician.id
+    ) {
+      throw new AppError(
+        StatusCodes.FORBIDDEN,
+        "You are not authorized to delete this service"
+      );
+    }
   }
 
   return prisma.service.delete({

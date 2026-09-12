@@ -7,6 +7,9 @@ export interface IServicePayload {
   price: Prisma.Decimal | number | string;
   duration: number;
   image?: string;
+
+  // Only required when ADMIN creates a service
+  technicianId?: string;
 }
 
 export interface IServiceUpdatePayload {
@@ -17,6 +20,7 @@ export interface IServiceUpdatePayload {
   duration?: number;
   image?: string;
   isActive?: boolean;
+  technicianId?: string;
 }
 
 export interface IServiceFilterRequest {
